@@ -31,7 +31,7 @@ export function PresenceControl() {
     setVerificandoLocalizacao(true)
     
     if (!navigator.geolocation) {
-      setMensagem('Geolocalização não suportada pelo navegador')
+      setMensagem('😕 Seu navegador não suporta geolocalização. Tente usar um navegador mais recente.')
       setVerificandoLocalizacao(false)
       return
     }
@@ -63,23 +63,23 @@ export function PresenceControl() {
       setMostrarLoginAdmin(false)
       setSenha('')
     } else {
-      setMensagem('Senha incorreta')
+      setMensagem('🔐 Senha incorreta. Verifique e tente novamente.')
     }
   }
 
   const registrarPresenca = async () => {
     if (!participanteAtual || !codigoDigitado || !matriculaCpf) {
-      setMensagem('Preencha todos os campos')
+      setMensagem('📝 Ops! Precisamos de todas as informações para registrar sua presença.')
       return
     }
 
     if (!localizacaoVerificada) {
-      setMensagem('Aguarde a verificação da localização')
+      setMensagem('📍 Só um momento, estamos verificando sua localização...')
       return
     }
 
     if (!coordenadas) {
-      setMensagem('Não foi possível obter sua localização')
+      setMensagem('🚫 Não conseguimos acessar sua localização. Verifique se você permitiu o acesso no seu navegador.')
       return
     }
 
@@ -106,7 +106,7 @@ export function PresenceControl() {
       const data = await response.json()
 
       if (response.ok) {
-        setMensagem('Presença registrada com sucesso!')
+        setMensagem('🎉 Tudo certo! Sua presença foi registrada com sucesso!')
         setParticipanteAtual('')
         setMatriculaCpf('')
         setCodigoDigitado('')
@@ -114,11 +114,11 @@ export function PresenceControl() {
         setDentroDaArea(false)
         setLocalizacaoVerificada(false)
       } else {
-        setMensagem(data.error || 'Erro ao registrar presença')
+        setMensagem(data.error || '❌ Não foi possível registrar sua presença. Tente novamente.')
       }
     } catch (error) {
-      console.error('Erro ao registrar presença:', error)
-      setMensagem('Erro ao registrar presença')
+      console.error('❌ Não foi possível registrar sua presença. Tente novamente.:', error)
+      setMensagem('❌ Não foi possível registrar sua presença. Tente novamente.')
     }
   }
 
@@ -202,10 +202,10 @@ export function PresenceControl() {
                 <h2 className="text-2xl font-bold mb-4">Acesso Mobile Apenas</h2>
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
                   <p className="text-yellow-700">
-                    O registro de presença foi projetado para funcionar apenas em dispositivos móveis.
+                    Este sistema foi desenvolvido para uso em dispositivos móveis.
                   </p>
                   <p className="text-yellow-600 mt-2">
-                    Por favor, acesse através do navegador do seu celular.
+                    Use seu smartphone para acessar e registrar sua presença.
                   </p>
                 </div>
               </div>
@@ -278,10 +278,10 @@ export function PresenceControl() {
             <div className="flex items-center gap-2 text-sm">
               <MapPin className={`w-5 h-5 ${localizacaoVerificada ? 'text-green-500' : 'text-gray-400'}`} />
               <span>
-                {verificandoLocalizacao ? 'Verificando localização...' :
+                {verificandoLocalizacao ? '🔍 Verificando sua localização...' :
                   localizacaoVerificada ? 
                     'Localização verificada ✓' : 
-                    'Aguardando localização...'}
+                    'Ative a localização do seu dispositivo para continuar'}
               </span>
             </div>
             

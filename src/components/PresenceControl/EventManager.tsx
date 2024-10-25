@@ -28,8 +28,8 @@ export function EventManager({ onLogout }: EventManagerProps) {
       const data = await response.json()
       setEventos(data)
     } catch (error) {
-      console.error('Erro ao carregar eventos:', error)
-      setMensagem('Erro ao carregar eventos')
+      console.error('⚠️ Não foi possível carregar os eventos. Tente novamente.:', error)
+      setMensagem('⚠️ Não foi possível carregar os eventos. Tente novamente.')
     }
   }
 
@@ -72,13 +72,13 @@ export function EventManager({ onLogout }: EventManagerProps) {
       if (response.ok) {
         await carregarEventos()
         setNovoEvento({})
-        setMensagem('Evento salvo com sucesso!')
+        setMensagem('✨ Evento cadastrado com sucesso!')
       } else {
-        setMensagem('Erro ao salvar evento')
+        setMensagem('❌ Erro ao salvar o evento. Verifique os dados e tente novamente.')
       }
     } catch (error) {
-      console.error('Erro ao salvar evento:', error)
-      setMensagem('Erro ao salvar evento')
+      console.error('❌ Erro ao salvar o evento. Verifique os dados e tente novamente.:', error)
+      setMensagem('❌ Erro ao salvar o evento. Verifique os dados e tente novamente.')
     }
   }
 
@@ -109,7 +109,7 @@ export function EventManager({ onLogout }: EventManagerProps) {
   }
 
   const excluirEvento = async (eventoId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este evento?')) return
+    if (!window.confirm('⚠️ Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.')) return
 
     try {
       const response = await fetch(`/api/eventos?id=${eventoId}`, {
@@ -118,7 +118,7 @@ export function EventManager({ onLogout }: EventManagerProps) {
 
       if (response.ok) {
         await carregarEventos()
-        setMensagem('Evento excluído com sucesso!')
+        setMensagem('🗑️ Evento removido com sucesso!')
       } else {
         setMensagem('Erro ao excluir evento')
       }
@@ -371,14 +371,14 @@ export function EventManager({ onLogout }: EventManagerProps) {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500">Nenhuma presença registrada</p>
+                          <p className="text-gray-500">👥 Nenhuma presença registrada neste evento</p>
                         )}
                       </div>
                     )}
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 p-4">Nenhum evento cadastrado</p>
+                <p className="text-gray-500 p-4">📅 Nenhum evento cadastrado ainda</p>
               )}
             </div>
 

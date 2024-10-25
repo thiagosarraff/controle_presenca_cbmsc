@@ -43,15 +43,19 @@ async function validarEvento(
     const rows = (response.data.values || []) as SheetRow[]
     if (rows.length <= 1) return null
 
-    // Procura evento com a palavra-chave
+    // 1. Primeiro encontra o evento específico pela palavra-chave
     const evento = rows.slice(1).find((row: SheetRow) => {
       const palavraChaveEvento = row[3]?.toUpperCase() || ''
       return palavraChaveEvento === palavraChave.toUpperCase()
     })
 
-    if (!evento) return null
+    // 2. Se não encontrou o evento ou faltam dados, retorna null
+    if (!evento || !evento[4] || !evento[5] || !evento[6]) {
+      console.log('Evento não encontrado ou 📋 Por favor, preencha todos os campos necessários.')
+      return null
+    }
 
-    // Valida a data
+    // 3. Valida a data específica deste evento
     const dataEvento = new Date(evento[2] + 'T00:00:00')
     const dataRegistro = new Date(data + 'T00:00:00')
 
@@ -60,23 +64,47 @@ async function validarEvento(
       dataEvento.getMonth() !== dataRegistro.getMonth() ||
       dataEvento.getDate() !== dataRegistro.getDate()
     ) {
+      console.log('Data inválida para o evento')
       return null
     }
 
-    // Valida a localização
+    // 4. Calcula a distância usando APENAS as coordenadas deste evento específico
     const distancia = calcularDistancia(
       coordenadas.latitude,
       coordenadas.longitude,
-      parseFloat(evento[4]), // latitude do evento
-      parseFloat(evento[5])  // longitude do evento
+      parseFloat(evento[4]), // latitude do evento encontrado pela palavra-chave
+      parseFloat(evento[5])  // longitude do evento encontrado pela palavra-chave
     )
 
-    const dentroDaArea = distancia <= parseFloat(evento[6]) // raio permitido do evento
+    // 5. Verifica se está dentro do raio permitido DESTE evento
+    const raioPermitido = parseFloat(evento[6])
+    const dentroDaArea = distancia <= raioPermitido
+
+    // 6. Log para debug
+    console.log({
+      evento: evento[1],
+      palavraChave,
+      distanciaCalculada: distancia,
+      raioPermitido,
+      dentroDaArea,
+      coordenadasUsuario: coordenadas,
+      coordenadasEvento: {
+        latitude: parseFloat(evento[4]),
+        longitude: parseFloat(evento[5])
+      }
+    })
+
+    // 7. Se não estiver dentro da área DESTE evento, retorna null
+    if (!dentroDaArea) {
+      console.log('Usuário fora da área do evento')
+      return null
+    }
     
     return {
       id: evento[0],
-      dentroDaArea
+      dentroDaArea: true // Se chegou aqui, está dentro da área
     }
+
   } catch (error) {
     console.error('Erro ao validar evento:', error)
     return null
@@ -140,12 +168,12 @@ export default async function handler(
 
       // Valida os dados recebidos
       if (!dados.nome || !dados.codigo || !dados.matriculaCpf || !dados.latitude || !dados.longitude) {
-        return res.status(400).json({ error: 'Dados incompletos' })
+        return res.status(400).json({ error: '📋 Por favor, preencha todos os campos necessários.' })
       }
 
       // Valida se matrícula/CPF contém apenas números
       if (!/^\d+$/.test(dados.matriculaCpf)) {
-        return res.status(400).json({ error: 'Matrícula/CPF deve conter apenas números' })
+        return res.status(400).json({ error: '🔢 A matrícula/CPF deve conter apenas números.' })
       }
 
       // Valida o evento e a localização
@@ -161,7 +189,7 @@ export default async function handler(
 
       if (!resultado) {
         return res.status(400).json({ 
-          error: 'Código inválido ou fora da data do evento'
+          error: '⚠️📍 Código inválido para esta data ou você não está no local do evento.'
         })
       }
 
@@ -179,7 +207,7 @@ export default async function handler(
         requestBody: { values }
       })
 
-      res.status(200).json({ message: 'Presença registrada com sucesso' })
+      res.status(200).json({ message: '🎉 Presença registrada com sucesso!' })
     } 
     else if (req.method === 'GET') {
       const { eventoId } = req.query
@@ -242,6 +270,6 @@ export default async function handler(
     }
   } catch (error) {
     console.error('Erro na API:', error)
-    res.status(500).json({ error: 'Erro ao processar requisição' })
+    res.status(500).json({ error: '🔧 Ops! Tivemos um problema técnico. Tente novamente em alguns instantes.' })
   }
 }
