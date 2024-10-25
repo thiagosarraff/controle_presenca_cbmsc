@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { MapPin, Lock } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AdminPanel } from './AdminPanel'
@@ -7,7 +8,7 @@ import { Presenca, Coordenadas } from './types'
 import { eventConfig } from '@/config/eventConfig'
 
 export function PresenceControl() {
-  const [autenticado, setAutenticado] = useState(false)
+  const [_autenticado, setAutenticado] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [mostrarLoginAdmin, setMostrarLoginAdmin] = useState(false)
   const [senha, setSenha] = useState('')
@@ -180,10 +181,12 @@ export function PresenceControl() {
         <div className="bg-white rounded-lg shadow-lg mb-4">
           <div className="border-b">
             <div className="p-4 flex items-center gap-3">
-              <img 
+              <Image 
                 src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
                 alt="Logo CBMSC" 
-                className="h-8"
+                width={32}
+                height={32}
+                className="h-8 w-auto"
               />
               <h2 className="text-xl font-bold flex-1">Acesso Administrativo</h2>
             </div>
@@ -217,10 +220,12 @@ export function PresenceControl() {
         <div className="bg-white rounded-lg shadow-lg mb-4">
           <div className="border-b">
             <div className="p-4 flex items-center gap-3">
-              <img 
+              <Image 
                 src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
                 alt="Logo CBMSC" 
-                className="h-8"
+                width={32}
+                height={32}
+                className="h-8 w-auto"
               />
               <h2 className="text-xl font-bold flex-1">Registro de Presença</h2>
               <button
@@ -258,10 +263,12 @@ export function PresenceControl() {
       <div className="bg-white rounded-lg shadow-lg mb-4">
         <div className="border-b">
           <div className="p-4 flex items-center gap-3">
-            <img 
+            <Image 
               src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
               alt="Logo CBMSC" 
-              className="h-8"
+              width={32}
+              height={32}
+              className="h-8 w-auto"
             />
             <h2 className="text-xl font-bold flex-1">Registro de Presença</h2>
             <button

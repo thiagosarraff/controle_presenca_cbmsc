@@ -34,7 +34,7 @@ async function validarEvento(palavraChave: string, data: string, coordenadas: { 
     if (rows.length <= 1) return null
 
     // Procura evento com a palavra-chave
-    const evento = rows.slice(1).find(row => row[3].toUpperCase() === palavraChave.toUpperCase())
+    const evento = rows.slice(1).find(row => row[3]?.toUpperCase() === palavraChave.toUpperCase())
     if (!evento) return null
 
     // Valida a data
@@ -145,4 +145,89 @@ export default async function handler(
         sheets
       )
 
-      if (!resulta
+      if (!resultado) {
+        return res.status(400).json({ 
+          error: 'Código inválido ou fora da data do evento'
+        })
+      }
+
+      // Adiciona o ID do evento aos dados
+      dados.eventoId = resultado.id
+      dados.dentroDaArea = resultado.dentroDaArea
+
+      // Prepara e envia os dados para a planilha
+      const values = formatDataForSheet(dados)
+      
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: RANGE,
+        valueInputOption: 'RAW',
+        requestBody: { values }
+      })
+
+      res.status(200).json({ message: 'Presença registrada com sucesso' })
+    } 
+    else if (req.method === 'GET') {
+      const { eventoId } = req.query
+
+      // Busca os dados da planilha
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: RANGE,
+      })
+
+      const rows = response.data.values || []
+
+      // Se não houver dados, retorna array vazio
+      if (rows.length <= 1) {
+        return res.status(200).json(eventoId ? [] : {})
+      }
+
+      // Se foi fornecido um eventoId, filtra as presenças daquele evento
+      if (eventoId) {
+        const presencasEvento = rows.slice(1)
+          .filter(row => row[8] === eventoId)
+          .map(row => ({
+            nome: row[0],
+            matriculaCpf: row[1],
+            codigo: row[2],
+            data: row[3],
+            hora: row[4],
+            latitude: parseFloat(row[5]),
+            longitude: parseFloat(row[6]),
+            dentroDaArea: row[7] === 'Sim',
+            eventoId: row[8]
+          }))
+
+        return res.status(200).json(presencasEvento)
+      }
+
+      // Caso contrário, retorna todas as presenças no formato anterior
+      const presencas = rows.slice(1).reduce((acc: any, row) => {
+        if (row[0]) {
+          acc[row[0]] = {
+            nome: row[0],
+            matriculaCpf: row[1],
+            codigo: row[2],
+            data: row[3],
+            hora: row[4],
+            latitude: parseFloat(row[5]),
+            longitude: parseFloat(row[6]),
+            dentroDaArea: row[7] === 'Sim',
+            eventoId: row[8]
+          }
+        }
+        return acc
+      }, {})
+
+      res.status(200).json(presencas)
+    }
+    else {
+      res.setHeader('Allow', ['POST', 'GET'])
+      res.status(405).end(`Method ${req.method} Not Allowed`)
+    }
+  } catch (error) {
+    console.error('Erro na API:', error)
+    res.status(500).json({ error: 'Erro ao processar requisição' })
+  }
+}
