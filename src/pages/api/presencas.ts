@@ -4,10 +4,15 @@ import { JWT } from 'google-auth-library'
 import path from 'path'
 import fs from 'fs'
 
-const RANGE = 'Presenças!A:I' // A:Nome, B:Matrícula/CPF, C:Código, D:Data, E:Hora, F:Latitude, G:Longitude, H:DentroDaArea, I:EventoId
+// Types
+type SheetRow = string[]
+type EventoRow = [string, string, string, string, string, string, string] // [id, nome, data, palavraChave, latitude, longitude, raio]
+
+const RANGE = 'Presenças!A:I'
+
 
 // Função para calcular distância entre coordenadas
-function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number) {
+function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3 // raio da Terra em metros
   const φ1 = lat1 * Math.PI/180
   const φ2 = lat2 * Math.PI/180
@@ -23,18 +28,27 @@ function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 // Função para validar evento e localização
-async function validarEvento(palavraChave: string, data: string, coordenadas: { latitude: number, longitude: number }, sheets: any) {
+async function validarEvento(
+  palavraChave: string, 
+  data: string, 
+  coordenadas: { latitude: number; longitude: number }, 
+  sheets: any
+): Promise<{ id: string; dentroDaArea: boolean } | null> {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: 'Eventos!A:G',
     })
 
-    const rows = response.data.values || []
+    const rows = (response.data.values || []) as SheetRow[]
     if (rows.length <= 1) return null
 
     // Procura evento com a palavra-chave
-    const evento = rows.slice(1).find(row => row[3]?.toUpperCase() === palavraChave.toUpperCase())
+    const evento = rows.slice(1).find((row: SheetRow) => {
+      const palavraChaveEvento = row[3]?.toUpperCase() || ''
+      return palavraChaveEvento === palavraChave.toUpperCase()
+    })
+
     if (!evento) return null
 
     // Valida a data
@@ -98,7 +112,7 @@ async function getGoogleSheetsClient() {
 }
 
 // Função para formatar os dados para a planilha
-function formatDataForSheet(data: any) {
+function formatDataForSheet(data: Record<string, any>): SheetRow[] {
   return [
     [
       data.nome,
