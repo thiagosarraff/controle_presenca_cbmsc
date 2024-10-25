@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Evento, Presenca } from './types'
-import { format } from 'date-fns'
+import { format, parse } from 'date-fns'  // Adicionado 'parse' aqui
 import { ptBR } from 'date-fns/locale'
 import { Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import Image from 'next/image'
+
 
 type EventManagerProps = {
   onLogout: () => void
@@ -249,10 +251,13 @@ export function EventManager({ onLogout }: EventManagerProps) {
                             type="date"
                             value={(() => {
                               try {
-                                const date = evento.data.includes('-') 
-                                  ? evento.data 
-                                  : format(parse(evento.data, 'dd/MM/yyyy', new Date()), 'yyyy-MM-dd')
-                                return date
+                                // Se já estiver no formato ISO, retorna como está
+                                if (evento.data.includes('-')) {
+                                  return evento.data
+                                }
+                                // Se estiver no formato dd/MM/yyyy, converte para ISO
+                                const [day, month, year] = evento.data.split('/')
+                                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
                               } catch {
                                 return evento.data
                               }
@@ -297,17 +302,15 @@ export function EventManager({ onLogout }: EventManagerProps) {
                             <p className="text-sm text-gray-600">
                               {(() => {
                                 try {
-                                  // Converte a data ISO para objeto Date
-                                  const date = evento.data.includes('-') 
-                                    ? new Date(evento.data + 'T00:00:00') // Adiciona horário para evitar problemas com timezone
-                                    : parse(evento.data, 'dd/MM/yyyy', new Date())
-                                  
+                                  const date = new Date(evento.data.includes('-') 
+                                    ? evento.data 
+                                    : evento.data.split('/').reverse().join('-'))
                                   return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
                                 } catch (error) {
-                                  console.error('Erro ao formatar data:', error, evento.data)
                                   return evento.data
                                 }
-                              })()}                           </p>
+                              })()}
+                            </p>
                             <p className="text-sm text-gray-500">
                               Palavra-chave: {evento.palavraChave}
                             </p>
