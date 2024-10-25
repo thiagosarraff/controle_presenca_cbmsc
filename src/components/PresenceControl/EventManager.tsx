@@ -304,10 +304,14 @@ export function EventManager({ onLogout }: EventManagerProps) {
                                 try {
                                   const date = new Date(evento.data.includes('-') 
                                     ? evento.data 
-                                    : evento.data.split('/').reverse().join('-'))
-                                  return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                                    : evento.data.split('/').reverse().join('-'));
+                                  
+                                  // Ajusta a data considerando o fuso horário
+                                  date.setUTCHours(3, 0, 0, 0);
+
+                                  return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
                                 } catch (error) {
-                                  return evento.data
+                                  return evento.data;
                                 }
                               })()}
                             </p>
