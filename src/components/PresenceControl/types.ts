@@ -3,6 +3,9 @@ export type Evento = {
   nome: string
   data: string
   palavraChave: string
+  latitude: number
+  longitude: number
+  raioPermitido: number
 }
 
 export type Presenca = {

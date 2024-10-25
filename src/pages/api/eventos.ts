@@ -3,10 +3,9 @@ import { google } from 'googleapis'
 import { JWT } from 'google-auth-library'
 import path from 'path'
 import fs from 'fs'
-import { eventConfig } from '@/config/eventConfig'
 import { format, parse } from 'date-fns'
 
-const EVENTS_RANGE = 'Eventos!A:D'
+const EVENTS_RANGE = 'Eventos!A:G' // A:ID, B:Nome, C:Data, D:Palavra-chave, E:Latitude, F:Longitude, G:Raio
 
 // Função para formatar data para o padrão brasileiro
 function formatDateToBR(dateStr: string) {
@@ -26,26 +25,14 @@ function formatDateToBR(dateStr: string) {
 // Função para garantir formato consistente de data
 function normalizeDate(dateStr: string) {
   try {
-    // Se já estiver no formato ISO (yyyy-MM-dd)
-    if (dateStr.includes('-')) {
-      return dateStr
-    }
-    
-    // Se vier no formato brasileiro (dd/MM/yyyy)
+    // Se a data vier no formato brasileiro (dd/MM/yyyy)
     if (dateStr.includes('/')) {
       const [day, month, year] = dateStr.replace("'", '').split('/')
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
     }
-
-    // Se for uma data válida em qualquer formato, converte para ISO
-    const date = new Date(dateStr)
-    if (!isNaN(date.getTime())) {
-      return format(date, 'yyyy-MM-dd')
-    }
-
+    // Se já estiver no formato ISO, retorna como está
     return dateStr
   } catch (error) {
-    console.error('Erro ao normalizar data:', error, dateStr)
     return dateStr
   }
 }
@@ -78,6 +65,21 @@ async function getGoogleSheetsClient() {
   }
 }
 
+// Função para formatar os dados do evento
+function formatEventData(data: any) {
+  return [
+    [
+      data.id,
+      data.nome,
+      data.data,
+      data.palavraChave,
+      data.latitude.toString(),
+      data.longitude.toString(),
+      data.raioPermitido.toString()
+    ]
+  ]
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -90,23 +92,23 @@ export default async function handler(
       // Primeiro verifica se a aba existe, se não, cria
       try {
         await sheets.spreadsheets.values.get({
-          spreadsheetId: eventConfig.spreadsheetId,
-          range: 'Eventos!A1:D1',
+          spreadsheetId: process.env.SPREADSHEET_ID,
+          range: 'Eventos!A1:G1',
         })
       } catch (error) {
         // Se a aba não existir, cria com o cabeçalho
         await sheets.spreadsheets.values.append({
-          spreadsheetId: eventConfig.spreadsheetId,
-          range: 'Eventos!A1:D1',
+          spreadsheetId: process.env.SPREADSHEET_ID,
+          range: 'Eventos!A1:G1',
           valueInputOption: 'RAW',
           requestBody: {
-            values: [['ID', 'Nome', 'Data', 'Palavra-chave']]
+            values: [['ID', 'Nome', 'Data', 'Palavra-chave', 'Latitude', 'Longitude', 'Raio']]
           }
         })
       }
 
       const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: eventConfig.spreadsheetId,
+        spreadsheetId: process.env.SPREADSHEET_ID,
         range: EVENTS_RANGE,
       })
 
@@ -123,8 +125,11 @@ export default async function handler(
         .map(row => ({
           id: row[0],
           nome: row[1],
-          data: row[2], // Mantém a data como está para edição
-          palavraChave: row[3]
+          data: row[2],
+          palavraChave: row[3],
+          latitude: parseFloat(row[4]),
+          longitude: parseFloat(row[5]),
+          raioPermitido: parseInt(row[6])
         }))
 
       res.status(200).json(eventos)
@@ -132,43 +137,44 @@ export default async function handler(
     
     // POST - Cria um novo evento
     else if (req.method === 'POST') {
-      const { nome, data, palavraChave } = req.body
+      const { nome, data, palavraChave, latitude, longitude, raioPermitido } = req.body
 
-      if (!nome || !data || !palavraChave) {
+      if (!nome || !data || !palavraChave || !latitude || !longitude || !raioPermitido) {
         return res.status(400).json({ error: 'Dados incompletos' })
       }
 
-      try {
-        // Valida a data
-        const normalizedDate = normalizeDate(data)
-        const testDate = new Date(normalizedDate)
-        if (isNaN(testDate.getTime())) {
-          return res.status(400).json({ error: 'Data inválida' })
-        }
+      // Gera um ID único
+      const id = `ev_${Date.now()}`
 
-        const id = `ev_${Date.now()}`
-        const values = [[id, nome, normalizedDate, palavraChave.toUpperCase()]]
-        
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: eventConfig.spreadsheetId,
-          range: EVENTS_RANGE,
-          valueInputOption: 'RAW',
-          requestBody: { values }
-        })
+      // Normaliza a data para o formato correto antes de salvar
+      const normalizedDate = normalizeDate(data)
 
-        res.status(200).json({ message: 'Evento criado com sucesso', id })
-      } catch (error) {
-        console.error('Erro ao criar evento:', error)
-        res.status(500).json({ error: 'Erro ao criar evento' })
-      }
+      const values = formatEventData({
+        id,
+        nome,
+        data: normalizedDate,
+        palavraChave: palavraChave.toUpperCase(),
+        latitude,
+        longitude,
+        raioPermitido
+      })
+      
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: EVENTS_RANGE,
+        valueInputOption: 'RAW',
+        requestBody: { values }
+      })
+
+      res.status(200).json({ message: 'Evento criado com sucesso', id })
     }
     
     // PUT - Atualiza um evento existente
     else if (req.method === 'PUT') {
       const { id } = req.query
-      const { nome, data, palavraChave } = req.body
+      const { nome, data, palavraChave, latitude, longitude, raioPermitido } = req.body
 
-      if (!id || !nome || !data || !palavraChave) {
+      if (!id || !nome || !data || !palavraChave || !latitude || !longitude || !raioPermitido) {
         return res.status(400).json({ error: 'Dados incompletos' })
       }
 
@@ -177,7 +183,7 @@ export default async function handler(
 
       // Primeiro, encontra o índice da linha do evento
       const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: eventConfig.spreadsheetId,
+        spreadsheetId: process.env.SPREADSHEET_ID,
         range: EVENTS_RANGE,
       })
 
@@ -190,11 +196,19 @@ export default async function handler(
 
       // Atualiza a linha
       await sheets.spreadsheets.values.update({
-        spreadsheetId: eventConfig.spreadsheetId,
-        range: `Eventos!A${rowIndex + 1}:D${rowIndex + 1}`,
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: `Eventos!A${rowIndex + 1}:G${rowIndex + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
-          values: [[id, nome, normalizedDate, palavraChave.toUpperCase()]]
+          values: formatEventData({
+            id,
+            nome,
+            data: normalizedDate,
+            palavraChave: palavraChave.toUpperCase(),
+            latitude,
+            longitude,
+            raioPermitido
+          })
         }
       })
 
@@ -211,7 +225,7 @@ export default async function handler(
 
       // Primeiro, encontra o índice da linha do evento
       const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: eventConfig.spreadsheetId,
+        spreadsheetId: process.env.SPREADSHEET_ID,
         range: EVENTS_RANGE,
       })
 
@@ -224,8 +238,8 @@ export default async function handler(
 
       // Limpa a linha do evento
       await sheets.spreadsheets.values.clear({
-        spreadsheetId: eventConfig.spreadsheetId,
-        range: `Eventos!A${rowIndex + 1}:D${rowIndex + 1}`,
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: `Eventos!A${rowIndex + 1}:G${rowIndex + 1}`,
       })
 
       res.status(200).json({ message: 'Evento removido com sucesso' })

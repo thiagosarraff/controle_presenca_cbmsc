@@ -156,33 +156,66 @@ export function EventManager({ onLogout }: EventManagerProps) {
             {/* Formulário de novo evento */}
             <div className="bg-gray-50 p-4 rounded">
               <h3 className="font-bold mb-4">Novo Evento</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="text"
-                  value={novoEvento.nome || ''}
-                  onChange={(e) => setNovoEvento(prev => ({ ...prev, nome: e.target.value }))}
-                  placeholder="Nome do evento"
-                  className="p-2 border rounded"
-                />
-                <input
-                  type="date"
-                  value={novoEvento.data || ''}
-                  onChange={(e) => setNovoEvento(prev => ({ 
-                    ...prev, 
-                    data: e.target.value
-                  }))}
-                  className="p-2 border rounded"
-                />
-                <input
-                  type="text"
-                  value={novoEvento.palavraChave || ''}
-                  onChange={(e) => setNovoEvento(prev => ({ 
-                    ...prev, 
-                    palavraChave: e.target.value.replace(/\s+/g, '').toUpperCase() 
-                  }))}
-                  placeholder="Palavra-chave (sem espaços)"
-                  className="p-2 border rounded"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    value={novoEvento.nome || ''}
+                    onChange={(e) => setNovoEvento(prev => ({ ...prev, nome: e.target.value }))}
+                    placeholder="Nome do evento"
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="date"
+                    value={novoEvento.data || ''}
+                    onChange={(e) => setNovoEvento(prev => ({ ...prev, data: e.target.value }))}
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="text"
+                    value={novoEvento.palavraChave || ''}
+                    onChange={(e) => setNovoEvento(prev => ({ 
+                      ...prev, 
+                      palavraChave: e.target.value.replace(/\s+/g, '').toUpperCase() 
+                    }))}
+                    placeholder="Palavra-chave (sem espaços)"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <input
+                    type="number"
+                    value={novoEvento.latitude || ''}
+                    onChange={(e) => setNovoEvento(prev => ({ 
+                      ...prev, 
+                      latitude: parseFloat(e.target.value) 
+                    }))}
+                    placeholder="Latitude"
+                    step="any"
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="number"
+                    value={novoEvento.longitude || ''}
+                    onChange={(e) => setNovoEvento(prev => ({ 
+                      ...prev, 
+                      longitude: parseFloat(e.target.value) 
+                    }))}
+                    placeholder="Longitude"
+                    step="any"
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="number"
+                    value={novoEvento.raioPermitido || ''}
+                    onChange={(e) => setNovoEvento(prev => ({ 
+                      ...prev, 
+                      raioPermitido: parseInt(e.target.value) 
+                    }))}
+                    placeholder="Raio permitido (metros)"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
               </div>
               <button
                 onClick={salvarEvento}

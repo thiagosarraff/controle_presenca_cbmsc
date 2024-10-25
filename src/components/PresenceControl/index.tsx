@@ -91,7 +91,8 @@ export function PresenceControl() {
   }
 
   const fazerLogin = () => {
-    if (senha === eventConfig.adminPassword) {
+    // Verifica se a senha corresponde à variável de ambiente
+    if (senha === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
       setIsAdmin(true)
       setAutenticado(true)
       setMostrarLoginAdmin(false)

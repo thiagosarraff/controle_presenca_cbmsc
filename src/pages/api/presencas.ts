@@ -3,58 +3,66 @@ import { google } from 'googleapis'
 import { JWT } from 'google-auth-library'
 import path from 'path'
 import fs from 'fs'
-import { eventConfig } from '@/config/eventConfig'
 
-const RANGE = 'Presenças!A:I' // Atualizado para incluir eventoId
+const RANGE = 'Presenças!A:I' // A:Nome, B:Matrícula/CPF, C:Código, D:Data, E:Hora, F:Latitude, G:Longitude, H:DentroDaArea, I:EventoId
 
-// Função para validar evento e data
-async function validarEvento(palavraChave: string, data: string, sheets: any) {
+// Função para calcular distância entre coordenadas
+function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3 // raio da Terra em metros
+  const φ1 = lat1 * Math.PI/180
+  const φ2 = lat2 * Math.PI/180
+  const Δφ = (lat2-lat1) * Math.PI/180
+  const Δλ = (lon2-lon1) * Math.PI/180
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+  return R * c // em metros
+}
+
+// Função para validar evento e localização
+async function validarEvento(palavraChave: string, data: string, coordenadas: { latitude: number, longitude: number }, sheets: any) {
   try {
-    console.log('Validando evento - palavra-chave:', palavraChave.toUpperCase(), 'data:', data) // Debug
-
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: eventConfig.spreadsheetId,
-      range: 'Eventos!A:D',
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: 'Eventos!A:G',
     })
 
     const rows = response.data.values || []
-    if (rows.length <= 1) {
-      console.log('Nenhum evento encontrado') // Debug
-      return null
-    }
+    if (rows.length <= 1) return null
 
-    console.log('Eventos disponíveis:', rows.slice(1)) // Debug
-
-    // Procura um evento com a palavra-chave fornecida
+    // Procura evento com a palavra-chave
     const evento = rows.slice(1).find(row => row[3].toUpperCase() === palavraChave.toUpperCase())
-    if (!evento) {
-      console.log('Nenhum evento encontrado com a palavra-chave:', palavraChave.toUpperCase()) // Debug
-      return null
-    }
+    if (!evento) return null
 
-    console.log('Evento encontrado:', evento) // Debug
-
-    // Normaliza as datas para comparação
+    // Valida a data
     const dataEvento = new Date(evento[2] + 'T00:00:00')
     const dataRegistro = new Date(data + 'T00:00:00')
 
-    console.log('Comparando datas:', {
-      dataEvento: dataEvento.toISOString(),
-      dataRegistro: dataRegistro.toISOString()
-    }) // Debug
-
-    // Compara apenas as datas, ignorando o horário
     if (
-      dataEvento.getFullYear() === dataRegistro.getFullYear() &&
-      dataEvento.getMonth() === dataRegistro.getMonth() &&
-      dataEvento.getDate() === dataRegistro.getDate()
+      dataEvento.getFullYear() !== dataRegistro.getFullYear() ||
+      dataEvento.getMonth() !== dataRegistro.getMonth() ||
+      dataEvento.getDate() !== dataRegistro.getDate()
     ) {
-      console.log('Data válida, retornando ID do evento:', evento[0]) // Debug
-      return evento[0] // Retorna o ID do evento
+      return null
     }
 
-    console.log('Data inválida') // Debug
-    return null
+    // Valida a localização
+    const distancia = calcularDistancia(
+      coordenadas.latitude,
+      coordenadas.longitude,
+      parseFloat(evento[4]), // latitude do evento
+      parseFloat(evento[5])  // longitude do evento
+    )
+
+    const dentroDaArea = distancia <= parseFloat(evento[6]) // raio permitido do evento
+    
+    return {
+      id: evento[0],
+      dentroDaArea
+    }
   } catch (error) {
     console.error('Erro ao validar evento:', error)
     return null
@@ -101,12 +109,11 @@ function formatDataForSheet(data: any) {
       data.latitude.toString(),
       data.longitude.toString(),
       data.dentroDaArea ? 'Sim' : 'Não',
-      data.eventoId // Novo campo
+      data.eventoId
     ]
   ]
 }
 
-// Handler principal da API
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -114,105 +121,28 @@ export default async function handler(
   try {
     const sheets = await getGoogleSheetsClient()
 
-  if (req.method === 'POST') {
-    const dados = req.body
-    console.log('Dados recebidos:', dados) // Debug
+    if (req.method === 'POST') {
+      const dados = req.body
 
-    // Valida os dados recebidos
-    if (!dados.nome || !dados.codigo || !dados.matriculaCpf) {
-      return res.status(400).json({ error: 'Dados incompletos' })
-    }
-
-    // Valida se matrícula/CPF contém apenas números
-    if (!/^\d+$/.test(dados.matriculaCpf)) {
-      return res.status(400).json({ error: 'Matrícula/CPF deve conter apenas números' })
-    }
-
-    // Valida o evento e a data
-    const eventoId = await validarEvento(dados.codigo, dados.data, sheets)
-    if (!eventoId) {
-      return res.status(400).json({ 
-        error: 'Código inválido ou fora da data do evento'
-      })
-    }
-
-    // Adiciona o ID do evento aos dados
-    dados.eventoId = eventoId
-
-    // Prepara e envia os dados para a planilha
-    const values = formatDataForSheet(dados)
-    
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: eventConfig.spreadsheetId,
-      range: RANGE,
-      valueInputOption: 'RAW',
-      requestBody: { values }
-    })
-
-    res.status(200).json({ message: 'Presença registrada com sucesso' })
-  }
- 
-    else if (req.method === 'GET') {
-      const { eventoId } = req.query
-
-      // Busca os dados da planilha
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: eventConfig.spreadsheetId,
-        range: RANGE,
-      })
-
-      const rows = response.data.values || []
-
-      // Se não houver dados, retorna array vazio
-      if (rows.length <= 1) {
-        return res.status(200).json(eventoId ? [] : {})
+      // Valida os dados recebidos
+      if (!dados.nome || !dados.codigo || !dados.matriculaCpf || !dados.latitude || !dados.longitude) {
+        return res.status(400).json({ error: 'Dados incompletos' })
       }
 
-      // Se foi fornecido um eventoId, filtra as presenças daquele evento
-      if (eventoId) {
-        const presencasEvento = rows.slice(1)
-          .filter(row => row[8] === eventoId) // Filtra pelo eventoId
-          .map(row => ({
-            nome: row[0],
-            matriculaCpf: row[1],
-            codigo: row[2],
-            data: row[3],
-            hora: row[4],
-            latitude: parseFloat(row[5]),
-            longitude: parseFloat(row[6]),
-            dentroDaArea: row[7] === 'Sim',
-            eventoId: row[8]
-          }))
-
-        return res.status(200).json(presencasEvento)
+      // Valida se matrícula/CPF contém apenas números
+      if (!/^\d+$/.test(dados.matriculaCpf)) {
+        return res.status(400).json({ error: 'Matrícula/CPF deve conter apenas números' })
       }
 
-      // Caso contrário, retorna todas as presenças no formato anterior
-      const presencas = rows.slice(1).reduce((acc: any, row) => {
-        if (row[0]) { // Verifica se tem nome
-          acc[row[0]] = {
-            nome: row[0],
-            matriculaCpf: row[1],
-            codigo: row[2],
-            data: row[3],
-            hora: row[4],
-            latitude: parseFloat(row[5]),
-            longitude: parseFloat(row[6]),
-            dentroDaArea: row[7] === 'Sim',
-            eventoId: row[8]
-          }
-        }
-        return acc
-      }, {})
+      // Valida o evento e a localização
+      const resultado = await validarEvento(
+        dados.codigo,
+        dados.data,
+        { 
+          latitude: dados.latitude, 
+          longitude: dados.longitude 
+        },
+        sheets
+      )
 
-      res.status(200).json(presencas)
-    } 
-    else {
-      res.setHeader('Allow', ['POST', 'GET'])
-      res.status(405).end(`Method ${req.method} Not Allowed`)
-    }
-  } catch (error) {
-    console.error('Erro na API:', error)
-    res.status(500).json({ error: 'Erro ao processar requisição' })
-  }
-}
+      if (!resulta
