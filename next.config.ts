@@ -1,9 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   images: {
-    domains: ['www.cbm.sc.gov.br']
-  }
+    domains: ['www.cbm.sc.gov.br'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'www.cbm.sc.gov.br',
+        pathname: '/images/**',
+      },
+    ],
+  },
 }
 
 module.exports = nextConfig

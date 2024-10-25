@@ -141,7 +141,7 @@ export function PresenceControl() {
           <div className="border-b">
             <div className="p-4 flex items-center gap-3">
               <Image 
-                src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
+                src="/images/logo.png"
                 alt="Logo CBMSC"
                 width={32}
                 height={32}
@@ -180,7 +180,7 @@ export function PresenceControl() {
           <div className="border-b">
             <div className="p-4 flex items-center gap-3">
               <Image 
-                src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
+                src="/images/logo.png"
                 alt="Logo CBMSC"
                 width={32}
                 height={32}
@@ -223,7 +223,7 @@ export function PresenceControl() {
         <div className="border-b">
           <div className="p-4 flex items-center gap-3">
             <Image 
-              src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
+              src="/images/logo.png"
               alt="Logo CBMSC"
               width={32}
               height={32}
