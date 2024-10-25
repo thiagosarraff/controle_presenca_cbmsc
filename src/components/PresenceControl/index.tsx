@@ -1,14 +1,13 @@
-import Image from 'next/image'
 import { MapPin, Lock } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AdminPanel } from './AdminPanel'
 import { EventManager } from './EventManager'
 import { LoginForm } from './LoginForm'
 import { Presenca, Coordenadas } from './types'
-import { eventConfig } from '@/config/eventConfig'
+import Image from 'next/image'
 
 export function PresenceControl() {
-  const [_autenticado, setAutenticado] = useState(false)
+  const [autenticado, setAutenticado] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [mostrarLoginAdmin, setMostrarLoginAdmin] = useState(false)
   const [senha, setSenha] = useState('')
@@ -28,32 +27,6 @@ export function PresenceControl() {
     setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
   }, [])
 
-  const carregarPresencas = async () => {
-    try {
-      const response = await fetch('/api/presencas')
-      const data = await response.json()
-      setPresencas(data)
-    } catch (error) {
-      console.error('Erro ao carregar presenças:', error)
-      setMensagem('Erro ao carregar presenças')
-    }
-  }
-
-  const calcularDistancia = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371e3
-    const φ1 = lat1 * Math.PI/180
-    const φ2 = lat2 * Math.PI/180
-    const Δφ = (lat2-lat1) * Math.PI/180
-    const Δλ = (lon2-lon1) * Math.PI/180
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-
-    return R * c
-  }
-
   const verificarLocalizacao = () => {
     setVerificandoLocalizacao(true)
     
@@ -70,16 +43,8 @@ export function PresenceControl() {
           longitude: position.coords.longitude
         }
         
-        const distancia = calcularDistancia(
-          coords.latitude,
-          coords.longitude,
-          eventConfig.location.latitude,
-          eventConfig.location.longitude
-        )
-        
         setCoordenadas(coords)
-        setDistanciaAtual(distancia)
-        setDentroDaArea(distancia <= eventConfig.location.raioPermitido)
+        // Não calculamos mais a distância aqui, pois depende do evento específico
         setLocalizacaoVerificada(true)
         setVerificandoLocalizacao(false)
       },
@@ -92,7 +57,6 @@ export function PresenceControl() {
   }
 
   const fazerLogin = () => {
-    // Verifica se a senha corresponde à variável de ambiente
     if (senha === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
       setIsAdmin(true)
       setAutenticado(true)
@@ -119,23 +83,18 @@ export function PresenceControl() {
       return
     }
 
-    // Formata a data atual no padrão ISO
-    const dataAtual = new Date().toISOString().split('T')[0]
-    const horaAtual = new Date().toLocaleTimeString()
-
     const presenca = {
       nome: participanteAtual,
       matriculaCpf,
-      codigo: codigoDigitado,
-      data: dataAtual,
-      hora: horaAtual,
+      codigo: codigoDigitado.toUpperCase(),
+      data: new Date().toISOString().split('T')[0],
+      hora: new Date().toLocaleTimeString(),
       latitude: coordenadas.latitude,
       longitude: coordenadas.longitude,
-      dentroDaArea
+      dentroDaArea: false  // Será determinado pelo backend
     }
 
     try {
-      console.log('Enviando dados de presença:', presenca) // Debug
       const response = await fetch('/api/presencas', {
         method: 'POST',
         headers: {
@@ -155,7 +114,6 @@ export function PresenceControl() {
         setDentroDaArea(false)
         setLocalizacaoVerificada(false)
       } else {
-        console.error('Erro na resposta:', data) // Debug
         setMensagem(data.error || 'Erro ao registrar presença')
       }
     } catch (error) {
@@ -163,6 +121,7 @@ export function PresenceControl() {
       setMensagem('Erro ao registrar presença')
     }
   }
+
   if (isAdmin) {
     return (
       <EventManager 
@@ -183,7 +142,7 @@ export function PresenceControl() {
             <div className="p-4 flex items-center gap-3">
               <Image 
                 src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
-                alt="Logo CBMSC" 
+                alt="Logo CBMSC"
                 width={32}
                 height={32}
                 className="h-8 w-auto"
@@ -222,7 +181,7 @@ export function PresenceControl() {
             <div className="p-4 flex items-center gap-3">
               <Image 
                 src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
-                alt="Logo CBMSC" 
+                alt="Logo CBMSC"
                 width={32}
                 height={32}
                 className="h-8 w-auto"
@@ -265,7 +224,7 @@ export function PresenceControl() {
           <div className="p-4 flex items-center gap-3">
             <Image 
               src="https://www.cbm.sc.gov.br/images/imagens/O_CBMSC/logo.png"
-              alt="Logo CBMSC" 
+              alt="Logo CBMSC"
               width={32}
               height={32}
               className="h-8 w-auto"
@@ -317,11 +276,11 @@ export function PresenceControl() {
             />
             
             <div className="flex items-center gap-2 text-sm">
-              <MapPin className={`w-5 h-5 ${dentroDaArea ? 'text-green-500' : 'text-gray-400'}`} />
+              <MapPin className={`w-5 h-5 ${localizacaoVerificada ? 'text-green-500' : 'text-gray-400'}`} />
               <span>
                 {verificandoLocalizacao ? 'Verificando localização...' :
-                  distanciaAtual !== null ? 
-                    `Distância até o local: ${distanciaAtual.toFixed(0)}m ${dentroDaArea ? '✓' : ''}` : 
+                  localizacaoVerificada ? 
+                    'Localização verificada ✓' : 
                     'Aguardando localização...'}
               </span>
             </div>
